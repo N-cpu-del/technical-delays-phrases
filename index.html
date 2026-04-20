@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phrase Unscramble Game</title>
+    <style>
+        :root {
+            --bg-color: #d1d8e0; 
+            --card-bg: #ffffff;
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --text: #2d3436;
+            --accent: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        h1 { color: var(--accent); font-size: 1.3rem; text-align: center; }
+        .instruction { color: #636e72; font-size: 0.9rem; text-align: center; margin-bottom: 20px; }
+
+        .question-block {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .answer-display {
+            min-height: 40px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .word {
+            background: var(--primary);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            touch-action: manipulation;
+        }
+        .word.used { opacity: 0.2; pointer-events: none; }
+        
+        .answer-word {
+            background: var(--secondary);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .controls { display: flex; justify-content: space-between; align-items: center; }
+        .reset-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .feedback { font-weight: bold; font-size: 13px; }
+        .check-all-btn {
+            display: block; width: 100%; background: var(--accent); color: white;
+            border: none; padding: 15px; border-radius: 10px; font-size: 16px;
+            cursor: pointer; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Phrase Unscramble</h1>
+    <p class="instruction">Tap words to build the phrase. Tap a green word to remove it.</p>
+    <div id="quiz-container"></div>
+    <button class="check-all-btn" onclick="checkAll()">Check All Answers</button>
+</div>
+
+<script>
+    const phrases = [
+        "Can you hear me OK?",
+        "There seems to be a delay ...",
+        "You’re breaking up a bit ...",
+        "Sorry I lost you there!",
+        "What was the last thing you heard?",
+        "You were just saying about ...",
+        "Sorry what was that?",
+        "Sorry Pete, I didn’t catch that last bit."
+    ];
+
+    let studentAnswers = phrases.map(() => []);
+    const container = document.getElementById('quiz-container');
+
+    phrases.forEach((sentence, qIdx) => {
+        let words = sentence.split(' ');
+        let shuffled = [...words].sort(() => Math.random() - 0.5);
+
+        const div = document.createElement('div');
+        div.className = 'question-block';
+        div.innerHTML = `
+            <div class="answer-display" id="ans-${qIdx}"></div>
+            <div class="word-bank" id="bank-${qIdx}">
+                ${shuffled.map((w, wIdx) => `<div class="word" id="w-${qIdx}-${wIdx}" onclick="handleBankTap(${qIdx}, ${wIdx}, '${w.replace(/'/g, "\\'")}')">${w}</div>`).join('')}
+            </div>
+            <div class="controls">
+                <button class="reset-btn" onclick="resetQ(${qIdx})">Reset</button>
+                <span id="fee-${qIdx}" class="feedback"></span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+
+    function handleBankTap(qIdx, wIdx, word) {
+        studentAnswers[qIdx].push({id: wIdx, text: word});
+        document.getElementById(`w-${qIdx}-${wIdx}`).classList.add('used');
+        render(qIdx);
+    }
+
+    function handleAnsTap(qIdx, aIdx) {
+        const removed = studentAnswers[qIdx].splice(aIdx, 1)[0];
+        document.getElementById(`w-${qIdx}-${removed.id}`).classList.remove('used');
+        render(qIdx);
+    }
+
+    function render(qIdx) {
+        const ad = document.getElementById(`ans-${qIdx}`);
+        ad.innerHTML = '';
+        studentAnswers[qIdx].forEach((obj, i) => {
+            const span = document.createElement('span');
+            span.className = 'answer-word';
+            span.innerText = obj.text;
+            span.onclick = () => handleAnsTap(qIdx, i);
+            ad.appendChild(span);
+        });
+    }
+
+    function resetQ(qIdx) {
+        studentAnswers[qIdx] = [];
+        document.querySelectorAll(`#bank-${qIdx} .word`).forEach(w => w.classList.remove('used'));
+        document.getElementById(`fee-${qIdx}`).innerText = '';
+        render(qIdx);
+    }
+
+    function checkAll() {
+        phrases.forEach((correct, qIdx) => {
+            const student = studentAnswers[qIdx].map(o => o.text).join(' ');
+            const f = document.getElementById(`fee-${qIdx}`);
+            const clean = (s) => s.replace(/[.\u2026?!,]/g, '').toLowerCase().trim();
+            
+            if (clean(student) === clean(correct) && student !== "") {
+                f.innerText = "✓ Correct"; f.style.color = "#27ae60";
+            } else {
+                f.innerText = "✗ Try again"; f.style.color = "#e74c3c";
+            }
+        });
+    }
+</script>
+</body>
+</html>
